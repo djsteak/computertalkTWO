@@ -53,7 +53,7 @@ sf::Packet& Object::serializeField(sf::Packet& packet,
 void Object::deserializeField(sf::Packet& packet, Object& obj) {
     uint8_t raw;
     packet >> raw;
-    ObjectField field = static_cast<ObjectField>(raw);
+    auto field = static_cast<ObjectField>(raw);
     obj.t = static_cast<Type>(raw);
 
     if (obj.t == Type::GenericCircle) {
@@ -92,7 +92,9 @@ void Object::deserializeField(sf::Packet& packet, Object& obj) {
             break;
         }
         case ObjectField::Color: {
-            packet >> obj.color.a >> obj.color.r >> obj.color.b >> obj.color.g;
+            packet >> obj.color.r >> obj.color.g >> obj.color.b >> obj.color.a;
+            obj.applyColor();
+
             break;
         }
     }
@@ -149,7 +151,13 @@ std::string Object::toString() const {
     ss << "  rotation: " << rotation << "\n";
     ss << "  radius: " << radius << "\n";
     ss << "  size: (" << size.x << ", " << size.y << ")\n";
-    ss << "  color: (" << color.r << ", " << color.g << ", " << color.b << ") Opacity = " << color.a << "\n";
+    ss << "color: ("
+    << static_cast<int>(color.r) << ", "
+    << static_cast<int>(color.g) << ", "
+    << static_cast<int>(color.b) << ") "
+    << "Opacity = "
+    << static_cast<int>(color.a)
+    << "\n";
 
     // Renderer info
     if (!renderer) {
@@ -188,3 +196,11 @@ void Object::rebuildRenderer() {
     }
 }
 
+void Object::applyColor() {
+    if (!renderer) return;
+
+    if (auto* circle = dynamic_cast<sf::CircleShape*>(renderer.get()))
+        circle->setFillColor(color);
+    else if (auto* rect = dynamic_cast<sf::RectangleShape*>(renderer.get()))
+        rect->setFillColor(color);
+}

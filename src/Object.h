@@ -80,6 +80,7 @@ public:
     }
 
     void rebuildRenderer();
+    void applyColor();
 
     // Networking helpers
     friend sf::Packet& operator<<(sf::Packet& packet, const Object& obj);

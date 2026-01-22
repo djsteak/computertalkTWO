@@ -34,6 +34,7 @@ void Game::render(sf::RenderWindow& window) {
         auto* shape = dynamic_cast<sf::Transformable*>(obj.renderer.get());
         if (shape)
             shape->setPosition(obj.position);
+        obj.applyColor();
 
         window.draw(*obj.renderer);
     }
