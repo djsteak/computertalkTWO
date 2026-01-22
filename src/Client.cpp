@@ -80,6 +80,7 @@ void Client::run() {
         // V V V RENDER! V V V
 
         window.clear();
+        std::cout << game.getObject(1)->toString() << "\n";
         game.render(window);
         window.display();
 
@@ -160,14 +161,16 @@ void Client::handlePacket(MessageType type, sf::Packet& packet, Game& game) {
 
     switch (type) {
         case MessageType::Join: {
-            std::cout << "COMMENCING JOINING PROCEDURE!\n";
-            while (!packet.endOfPacket()) {
-                std::cout << packet.getData() << '\n';
+            std::uint32_t count;
+            packet >> count;
+
+            for (std::uint32_t i = 0; i < count; ++i) {
                 Object obj;
                 packet >> obj;
+                std::cout << obj.toString() << '\n';
                 game.objects[obj.getID()] = std::move(obj);
-            }
 
+            }
             break;
 
         }

@@ -20,10 +20,22 @@ void Server::run() {
     std::cout << "Server listening on port " << PORT << "...\n";
 
     sf::Clock clock;
-    auto testCircleCircle = std::make_unique<sf::CircleShape>(20.f);
-    testCircleCircle->setFillColor(sf::Color::White);
-    Object testCircle = Object(1, std::move(testCircleCircle));
+    Object testCircle = Object(1);
+    testCircle.position = sf::Vector2f(100.f, 100.f);
+    testCircle.velocity = sf::Vector2f(10.f, 0.f);
+    testCircle.t = Type::GenericCircle;
+    testCircle.radius = 10;
+    testCircle.color = sf::Color::Red;
     game.objects[testCircle.getID()] = std::move(testCircle);
+
+
+    Object testCircle2 = Object(2);
+    testCircle2.position = sf::Vector2f(50.f, 50.f);
+    testCircle2.t = Type::GenericCircle;
+    testCircle2.radius = 10;
+    game.objects[testCircle2.getID()] = std::move(testCircle2);
+
+
     for (const auto& [id, _] : game.objects) {
         std::cout << " - " << id << '\n';
     }
@@ -113,6 +125,8 @@ void Server::broadcastGameState() {
     for (auto& [id, obj] : game.objects) {
 
         sf::Packet update;
+        update << static_cast<std::uint8_t>(MessageType::UpdateObject);
+
         Object::serializeField(update, obj, ::ObjectField::Position);
 
         for (auto& client : clients) {

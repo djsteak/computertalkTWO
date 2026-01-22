@@ -28,6 +28,13 @@ void Game::update(float dt) {
 
 void Game::render(sf::RenderWindow& window) {
     for (auto& [id, obj] : objects) {
+        if (!obj.renderer)
+            continue;
+
+        auto* shape = dynamic_cast<sf::Transformable*>(obj.renderer.get());
+        if (shape)
+            shape->setPosition(obj.position);
+
         window.draw(*obj.renderer);
     }
 }
@@ -41,6 +48,6 @@ void Game::applyFullState(sf::Packet& packet) {
     for (std::uint32_t i = 0; i < count; ++i) {
         Object obj;
         packet >> obj;
-        objects.emplace(obj.getID(), Object(obj.getID(), std::move(obj.renderer)));
+        objects.emplace(obj.getID(), Object(obj.getID()));
     }
 }

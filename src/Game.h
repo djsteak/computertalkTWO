@@ -25,13 +25,16 @@ public:
     void render(sf::RenderWindow& window);
 
     // Networking
-    sf::Packet serializeFullState() const {
+    [[nodiscard]] sf::Packet serializeFullState() const {
         sf::Packet packet;
+        packet << static_cast<std::uint32_t>(objects.size());
+
         for (const auto& [id, obj] : objects) {
             packet << obj;
         }
         return packet;
-    }    void applyFullState(sf::Packet& packet);
+    }
+    void applyFullState(sf::Packet& packet);
 
 private:
     ObjectID nextID = 1;

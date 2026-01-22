@@ -6,10 +6,15 @@
 #include <optional>
 #include <map>
 
+#include "SFML/Audio/Listener.hpp"
+
 using ObjectID = std::uint32_t;
 
 enum class Authority : std::uint8_t { Server, Client };
-enum class Type : std::uint8_t { Player, Enemy, Bullet, Generic };
+enum class Type : std::uint8_t {
+    GenericCircle,
+    GenericRectangle,
+};
 
 // Each property that can be synced over network
 enum class ObjectField : uint8_t {
@@ -21,11 +26,31 @@ enum class ObjectField : uint8_t {
     Rotation,
     ShapeCircle, // radius
     ShapeRect,   // width & height
+    Color,
 };
+
 
 class Object {
 public:
-    Object(ObjectID id, std::unique_ptr<sf::Drawable> renderer);
+
+    static const char* AuthorityToString(Authority a) {
+        switch (a) {
+            case Authority::Server: return "Server";
+            case Authority::Client: return "Client";
+        }
+        return "Unknown";
+    }
+
+    static const char* TypeToString(Type t) {
+        switch (t) {
+            case Type::GenericCircle:  return "GenericCircle";
+            case Type::GenericRectangle:   return "GenericRectangle";
+        }
+        return "Unknown";
+    }
+
+    [[nodiscard]] std::string toString() const;
+    Object(ObjectID id);
     Object() = default;
     ObjectID getID() const { return id; }
 
@@ -36,12 +61,12 @@ public:
     Authority authority = Authority::Server;
     float rotation = 0.f;
 
-    // Shape
+    // rendering stuff
     std::unique_ptr<sf::Drawable> renderer;
     float radius = 0.f; // for CircleShape
-    float width = 0.f, height = 0.f; // for RectangleShape
-
-    Type t = Type::Generic;
+    sf::Vector2f size; // for RectangleShape
+    sf::Color color = sf::Color::White;
+    Type t = Type::GenericCircle;
 
     template <typename T>
     void setRenderer(T shape) {
@@ -50,14 +75,18 @@ public:
         renderer = std::make_unique<T>(shape);
     }
 
-    void update(float dt) { position += velocity * dt; }
+    void update(float dt) {
+        position += velocity * dt;
+    }
+
+    void rebuildRenderer();
 
     // Networking helpers
     friend sf::Packet& operator<<(sf::Packet& packet, const Object& obj);
     friend sf::Packet& operator>>(sf::Packet& packet, Object& obj);
 
     static sf::Packet& serializeField(sf::Packet& packet, const Object& obj, ObjectField field);
-    static void deserializeField(sf::Packet& packet, Object& obj, ObjectField field);
+    static void deserializeField(sf::Packet& packet, Object& obj);
 
 private:
     ObjectID id = 0;
