@@ -1,41 +1,96 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Network.hpp>
 #include <optional>
 #include <string>
 #include "Client.h"
 #include "Object.h"
+#include "Game.h"
 
 #include <iostream>
 
-Client::Client() {
+
+Client::Client() = default;
+
+
+void Client::run() {
     std::string username = _getUsername();
-    std::cout << "Username: " << username << std::endl;
-    sf::RenderWindow display(sf::VideoMode({1000, 800}), "SHITSHITSHITSHITSHIT");
-    display.setFramerateLimit(60);
-    std::list<Object> objects;
-    Object playerCharacter;
-    playerCharacter.setShape(std::make_unique<sf::CircleShape>(20.f));
-    playerCharacter.getShape()->setFillColor(sf::Color::White);
-    objects.push_back(std::move(playerCharacter));
-    while (display.isOpen()) {
-        while (const std::optional event = display.pollEvent())
-        {
-            // "close requested" event: we close the window
-            if (event->is<sf::Event::Closed>())
-                display.close();
+    sf::RenderWindow window(sf::VideoMode({800, 600}), "Client");
+    auto ip = sf::IpAddress::resolve("127.0.0.1");
+    sf::IpAddress serverIp = *ip;
+    unsigned short port = 34197;
+    bool connected = network.connect(serverIp, port);
+
+    for (int i = 0; i < 5; ++i) { // try 5 times
+        if (connected) {
+            std::cout << "IT DID THE CONNECTION THINGY WOOOOOOOOOOO\n";
+            break;
+        } else {
+            std::cout << "waiting for connection...\n";
+            sf::sleep(sf::milliseconds(1000));
         }
-        display.clear();
-        for (std::list<Object>::iterator object = objects.begin(); object != objects.end(); object++) {
-            object->draw(display);
+    }
+
+
+    if (!connected) {
+        std::cerr << "failed to connect to server\n";
+        return;
+    }
+
+    sf::Packet handshakeAck;
+
+    handshakeAck << username;
+
+    if (!network.send(network.getSocket(), MessageType::Join, handshakeAck)) {
+        std::cerr << "Failed to send handshake acknowledgment\n";
+        return;
+    }
+
+    window.setFramerateLimit(60);
+    Game game;
+    sf::Clock clock;
+    // IMPORTANT GAME LOOP
+    while (window.isOpen()) {
+
+        // V V V handle window events V V V
+        while (auto event = window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
+                window.close();
+            }
         }
-        display.display();
+
+        // V V V INPUT V V V
+
+
+
+
+        // V V V PACKETS! V V V
+        auto packets = network.poll();
+        while(!packets.empty()) {
+            auto [type, packet] = packets.front();
+            packets.pop();
+            handlePacket(type, packet, game);
+        }
+
+
+        // V V V game update V V V
+        float dt = clock.restart().asSeconds();
+        game.update(dt);
+
+
+        // V V V RENDER! V V V
+
+        window.clear();
+        game.render(window);
+        window.display();
+
+        sf::sleep(sf::milliseconds(15));
     }
 }
 
-Client::~Client() = default;
 
 
 std::string Client::_getUsername() {
-    sf::RenderWindow window(sf::VideoMode({300, 80}), "Enter Username");
+    sf::RenderWindow window(sf::VideoMode({300, 80}), "enter username");
     window.setFramerateLimit(60);
 
     sf::Font font;
@@ -96,4 +151,42 @@ std::string Client::_getUsername() {
     }
 
     return username;
+}
+
+
+// V V V yeah this is kinda important V V V
+void Client::handlePacket(MessageType type, sf::Packet& packet, Game& game) {
+    std::cout << MessageTypetoString(type) << '\n';
+
+    switch (type) {
+        case MessageType::Join: {
+            std::cout << "COMMENCING JOINING PROCEDURE!\n";
+            while (!packet.endOfPacket()) {
+                std::cout << packet.getData() << '\n';
+                Object obj;
+                packet >> obj;
+                game.objects[obj.getID()] = std::move(obj);
+            }
+
+            break;
+
+        }
+
+        case MessageType::GameState:
+            // TODO: handle game state update
+            break;
+
+        case MessageType::SpawnObject:
+            // TODO: handle object spawn
+            break;
+
+        case MessageType::DestroyObject:
+            // TODO: handle object removal
+            break;
+
+        case MessageType::UpdateObject: { // IMPORTANT
+
+        }
+        default: ;
+    }
 }

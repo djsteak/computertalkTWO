@@ -1,20 +1,20 @@
-//
-// Created by dj on 1/14/26.
-//
-
 #ifndef CMAKESFMLPROJECT_CLIENT_H
 #define CMAKESFMLPROJECT_CLIENT_H
-#include <cstdlib>
+#include <SFML/Network.hpp>
+#include "Network.h"
 #include <string>
 
-class Client {
-    public:
-    Client();
-    ~Client();
-    private:
-    static std::string _getUsername();
+#include "Game.h"
 
+class Client {
+public:
+    Client();
+    void run();
+
+private:
+    static std::string _getUsername();
+    static void handlePacket(MessageType type, sf::Packet& packet, Game& game);
+    Network network;
 };
 
-
-#endif //CMAKESFMLPROJECT_CLIENT_H
+#endif
