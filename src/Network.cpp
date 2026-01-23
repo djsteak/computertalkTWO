@@ -10,11 +10,13 @@ Network::~Network() {
 
 bool Network::connect(const sf::IpAddress& address, unsigned short port) {
     sf::Time time = sf::milliseconds(1000);
+
     if (socket.connect(address, port, time) != sf::Socket::Status::Done) {
         std::cerr << "Failed to connect to server\n";
         return false;
     }
     socket.setBlocking(false);
+
     return true;
 
 }
@@ -39,6 +41,15 @@ sf::TcpSocket* Network::acceptClient() {
     if (listener.accept(*client) != sf::Socket::Status::Done) {
         delete client;
         return nullptr;
+    }
+    return client;
+}
+
+std::optional<std::unique_ptr<sf::TcpSocket>> Network::acceptClientNonBlocking() {
+    auto client = std::make_unique<sf::TcpSocket>();
+    listener.setBlocking(false);
+    if (listener.accept(*client) == sf::Socket::Status::NotReady) {
+        return std::nullopt; // no client yet
     }
     return client;
 }
@@ -86,6 +97,25 @@ bool Network::receive(sf::TcpSocket& socket, MessageType& type, sf::Packet& pack
 
 void debugpacket(sf::Packet& packet) {
 
+}
+
+sf::Socket::Status Network::receiveNonBlocking(
+    sf::TcpSocket &socket,
+    MessageType &type,
+    sf::Packet &packet
+) {
+    sf::Packet raw;
+    sf::Socket::Status status = socket.receive(raw);
+
+    if (status != sf::Socket::Status::Done)
+        return status;
+
+    std::uint8_t rawType;
+    raw >> rawType;
+    type = static_cast<MessageType>(rawType);
+
+    packet = std::move(raw);
+    return sf::Socket::Status::Done;
 }
 
 

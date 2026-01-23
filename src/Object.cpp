@@ -9,20 +9,10 @@ Object::Object(ObjectID id)
 
 // -------------------- Field Serialization --------------------
 // IMPORTANT: this copies the objects the specified values into a packet
-sf::Packet& Object::serializeField(sf::Packet& packet,
-                                   const Object& obj,
-                                   ObjectField field)
-{
+// IMPORTANT: requires you to add the object id after the message type
+sf::Packet& Object::serializeField(sf::Packet& packet, const Object& obj, ObjectField field) {
+
     packet << static_cast<uint8_t>(field);
-    packet << static_cast<uint8_t>(obj.t);
-
-    if (obj.t == Type::GenericCircle) {
-        packet << obj.radius;
-    }
-    else if (obj.t == Type::GenericRectangle) {
-        packet << obj.size.x << obj.size.y;
-    }
-
     switch (field) {
         case ObjectField::Position:
             packet << obj.position.x << obj.position.y;
@@ -45,23 +35,19 @@ sf::Packet& Object::serializeField(sf::Packet& packet,
         case ObjectField::Color:
             packet << obj.color.a << obj.color.r << obj.color.g << obj.color.b;
             break;
+        case ObjectField::Size:
+            packet << obj.size.x << obj.size.y;
+            break;
+        case ObjectField::Radius:
+            packet << obj.radius;
     }
     return packet;
 }
 
-// IMPORTANT: this takes whatever values are in the packet and puts them into an object
-void Object::deserializeField(sf::Packet& packet, Object& obj) {
-    uint8_t raw;
-    packet >> raw;
-    auto field = static_cast<ObjectField>(raw);
-    obj.t = static_cast<Type>(raw);
+// IMPORTANT: this takes a field and a value for that field and applies
+// IMPORTANT: requires you to add the object id after the message type in creating the packet
+void Object::deserializeField(sf::Packet& packet, Object& obj, ObjectField field) {
 
-    if (obj.t == Type::GenericCircle) {
-        packet >> obj.radius;
-    }
-    else if (obj.t == Type::GenericRectangle) {
-        packet >> obj.size.x >> obj.size.y;
-    }
     switch (field) {
         case ObjectField::Position: {
             packet >> obj.position.x >> obj.position.y;
@@ -97,6 +83,12 @@ void Object::deserializeField(sf::Packet& packet, Object& obj) {
 
             break;
         }
+        case ObjectField::Size: {
+            packet >> obj.size.x >> obj.size.y;
+        }
+        case ObjectField::Radius: {
+            packet >> obj.radius;
+        }
     }
 }
 
@@ -104,14 +96,14 @@ void Object::deserializeField(sf::Packet& packet, Object& obj) {
 // -------------------- Full Serialization --------------------
 sf::Packet& operator<<(sf::Packet& packet, const Object& obj) { // puts the entire object into a packet
     packet << obj.id
+    << static_cast<uint8_t>(obj.t)
+    << static_cast<uint8_t>(obj.authority)
     << obj.position.x << obj.position.y
     << obj.velocity.x << obj.velocity.y
     << obj.owner
-    << static_cast<uint8_t>(obj.authority)
     << obj.rotation
     << obj.radius
     << obj.size.x << obj.size.y
-    << static_cast<uint8_t>(obj.t)
     << obj.color.a << obj.color.r << obj.color.g << obj.color.b;
     return packet;
 }
@@ -120,14 +112,14 @@ sf::Packet& operator>>(sf::Packet& packet, Object& obj) { // takes the object ou
     uint8_t a, t;
 
     packet >> obj.id
+    >> t
+    >> a
     >> obj.position.x >> obj.position.y
     >> obj.velocity.x >> obj.velocity.y
     >> obj.owner
-    >> a
     >> obj.rotation
     >> obj.radius
     >> obj.size.x >> obj.size.y
-    >> t
     >> obj.color.a >> obj.color.r >> obj.color.g >> obj.color.b;
 
     obj.authority = static_cast<Authority>(a);
@@ -158,24 +150,11 @@ std::string Object::toString() const {
     << "Opacity = "
     << static_cast<int>(color.a)
     << "\n";
-
-    // Renderer info
-    if (!renderer) {
-        ss << "  renderer: null\n";
-    } else if (radius > 0.f) {
-        ss << "  renderer: Circle (radius=" << radius << ")\n";
-    } else if (size.x > 0.f || size.y > 0.f) {
-        ss << "  renderer: Rectangle ("
-           << size.x << " x " << size.y << ")\n";
-    } else {
-        ss << "  renderer: Unknown drawable\n";
-    }
-
     ss << "}";
 
     return ss.str();
 }
-// IMPORTANT: rebuolds the renderer because it isnt created on deserialization (also only for client)
+// IMPORTANT: rebuilds the renderer because it isn't created on deserialization (also only for client)
 void Object::rebuildRenderer() {
     switch (t) {
         case Type::GenericCircle: {
@@ -187,6 +166,24 @@ void Object::rebuildRenderer() {
         case Type::GenericRectangle: {
             auto r = std::make_unique<sf::RectangleShape>(size);
             r->setOrigin(size);
+            renderer = std::move(r);
+            break;
+        }
+        case Type::PlayerVehicle: {
+            auto r = std::make_unique<sf::VertexArray>(sf::PrimitiveType::TriangleFan);
+            r->append(sf::Vertex{{0.f, 0.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, 25.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{100.f, 0.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{90.f, -25.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{10.f, -20.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, -25.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{-10.f, -20.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{-90.f, -25.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{-100.f, 0.f}, sf::Color::White, {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, 25.f}, sf::Color::White, {100.f, 100.f}});
+
+
+
             renderer = std::move(r);
             break;
         }
@@ -203,4 +200,7 @@ void Object::applyColor() {
         circle->setFillColor(color);
     else if (auto* rect = dynamic_cast<sf::RectangleShape*>(renderer.get()))
         rect->setFillColor(color);
+    else if (auto* shape = dynamic_cast<sf::VertexArray*>(renderer.get())) {
+
+    }
 }

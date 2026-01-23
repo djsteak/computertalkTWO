@@ -20,13 +20,11 @@ void Server::run() {
     std::cout << "Server listening on port " << PORT << "...\n";
 
     sf::Clock clock;
-    Object testCircle = Object(1);
-    testCircle.position = sf::Vector2f(100.f, 100.f);
-    testCircle.velocity = sf::Vector2f(10.f, 0.f);
-    testCircle.t = Type::GenericCircle;
-    testCircle.radius = 10;
-    testCircle.color = sf::Color::Red;
-    game.objects[testCircle.getID()] = std::move(testCircle);
+    Object playerMothership = Object(1);
+    playerMothership.position = sf::Vector2f(100.f, 100.f);
+    playerMothership.t = Type::PlayerVehicle;
+    playerMothership.color = sf::Color::Red;
+    game.objects[playerMothership.getID()] = std::move(playerMothership);
 
 
     Object testCircle2 = Object(2);
@@ -42,22 +40,32 @@ void Server::run() {
     while (running) {
         float dt = clock.restart().asSeconds();
 
-        // V V V accepting clients V V V
-        if (auto maybeClient = network.acceptClient()) {
-            sf::TcpSocket& client = *maybeClient;
 
+        // V V V accepting clients V V V
+        if (auto maybeClient = network.acceptClientNonBlocking()) {
+            sf::TcpSocket& client = **maybeClient;
+            client.setBlocking(false); // each client socket should be non-blocking too
             clients.push_back(std::move(client));
             std::cout << "client connected\n";
+        }
+
+        if (clients.empty()) {
+            sf::sleep(sf::milliseconds(1)); // do not spamming
+            continue;
         }
 
         // V V V receive packets V V V
         for (auto it = clients.begin(); it != clients.end();) {
             MessageType type;
             sf::Packet packet;
+            sf::Socket::Status status = Network::receiveNonBlocking(*it, type, packet);
+            if (status == sf::Socket::Status::NotReady) {
+                ++it;              // no data yet — DO NOT BLOCK
+                continue;
+            }
 
-            if (!Network::receive(*it,type, packet)) {
-                // disconnected
-                std::cout << "dlient disconnected\n";
+            if (status != sf::Socket::Status::Done) {
+                std::cout << "client disconnected\n";
                 it = clients.erase(it);
                 continue;
             }
@@ -67,12 +75,13 @@ void Server::run() {
         }
 
         // V V V update game state V V V
+        game.objects[1].velocity.y += 0.01;
         game.update(dt);
 
         // V V V broadcast state updates V V V
         broadcastGameState();
 
-        sf::sleep(sf::milliseconds(1)); // do not spamming
+        sf::sleep(sf::milliseconds(15)); // do not spamming
     }
 }
 
@@ -112,9 +121,8 @@ void Server::handlePacket(MessageType type, sf::Packet& packet, sf::TcpSocket& c
             auto& obj = game.objects[id];
 
             // SERVER VALIDATION
-            if (obj.authority == Authority::Client) {
-                obj.velocity = velocity;
-            }
+            obj.velocity = velocity;
+            obj.position = position;
 
             break;
         }
@@ -125,9 +133,12 @@ void Server::broadcastGameState() {
     for (auto& [id, obj] : game.objects) {
 
         sf::Packet update;
-        update << static_cast<std::uint8_t>(MessageType::UpdateObject);
+        update << static_cast<uint8_t>(MessageType::UpdateObject);
+        update << obj.getID();
+        update << uint8_t(2); // number of fields
 
-        Object::serializeField(update, obj, ::ObjectField::Position);
+        Object::serializeField(update, obj, ObjectField::Position);
+        Object::serializeField(update, obj, ObjectField::Velocity);
 
         for (auto& client : clients) {
             sf::Socket::Status success = client.send(update);

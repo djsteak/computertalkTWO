@@ -11,9 +11,15 @@
 using ObjectID = std::uint32_t;
 
 enum class Authority : std::uint8_t { Server, Client };
+
+// IMPORTANT: WHEN ADDING NEW OBJECTS HERE YOU MUST IMPLEMENT IT INTO THE FOLLOWING:
+// V | | | V      Object.h      ->   std::string TypeToString(Type t) // not needed unless debugging
+// V | | | V      Object.cpp    ->   void Object::rebuildRenderer()
+// V V V V V      Object.cpp    ->   void Object::applyColor()
 enum class Type : std::uint8_t {
     GenericCircle,
     GenericRectangle,
+    PlayerVehicle,
 };
 
 // Each property that can be synced over network
@@ -27,6 +33,8 @@ enum class ObjectField : uint8_t {
     ShapeCircle, // radius
     ShapeRect,   // width & height
     Color,
+    Radius,
+    Size,
 };
 
 
@@ -45,8 +53,10 @@ public:
         switch (t) {
             case Type::GenericCircle:  return "GenericCircle";
             case Type::GenericRectangle:   return "GenericRectangle";
+            case Type::PlayerVehicle:   return "PlayerVehicle";
+
         }
-        return "Unknown";
+        return "Unknown or unimplemented";
     }
 
     [[nodiscard]] std::string toString() const;
@@ -87,7 +97,7 @@ public:
     friend sf::Packet& operator>>(sf::Packet& packet, Object& obj);
 
     static sf::Packet& serializeField(sf::Packet& packet, const Object& obj, ObjectField field);
-    static void deserializeField(sf::Packet& packet, Object& obj);
+    static void deserializeField(sf::Packet& packet, Object& obj, ObjectField field);
 
 private:
     ObjectID id = 0;

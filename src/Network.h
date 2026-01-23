@@ -41,10 +41,12 @@ public:
     // Server-side
     bool listen(unsigned short port);
     sf::TcpSocket* acceptClient();
+    std::optional<std::unique_ptr<sf::TcpSocket>> acceptClientNonBlocking();
 
     // Common
     static bool send(sf::TcpSocket& socket, MessageType type, sf::Packet& data);
     static bool receive(sf::TcpSocket& socket, MessageType& type, sf::Packet& data);
+    static sf::Socket::Status receiveNonBlocking(sf::TcpSocket &socket, MessageType &type, sf::Packet &packet);
 
     static void debugpacket(sf::Packet& packet);
 

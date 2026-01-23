@@ -8,6 +8,7 @@
 
 class Client {
 public:
+    sf::Vector2f screensize = sf::Vector2f(500, 400);
     Client();
     void run();
 

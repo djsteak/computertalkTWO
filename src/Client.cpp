@@ -8,13 +8,16 @@
 
 #include <iostream>
 
-
 Client::Client() = default;
 
 
 void Client::run() {
     std::string username = _getUsername();
-    sf::RenderWindow window(sf::VideoMode({800, 600}), "Client");
+    sf::RenderWindow window(sf::VideoMode({static_cast<unsigned>(screensize.x * 2), static_cast<unsigned>(screensize.y * 2)}), "Client");
+    window.setFramerateLimit(60);
+    Game game;
+    sf::Clock clock;
+
     auto ip = sf::IpAddress::resolve("127.0.0.1");
     sf::IpAddress serverIp = *ip;
     unsigned short port = 34197;
@@ -22,48 +25,52 @@ void Client::run() {
 
     for (int i = 0; i < 5; ++i) { // try 5 times
         if (connected) {
-            std::cout << "IT DID THE CONNECTION THINGY WOOOOOOOOOOO\n";
+            std::cout << "connected to server\n";
             break;
         } else {
             std::cout << "waiting for connection...\n";
             sf::sleep(sf::milliseconds(1000));
         }
     }
-
-
     if (!connected) {
         std::cerr << "failed to connect to server\n";
         return;
     }
-
+    std::cout << "joining the game step 1\n";
     sf::Packet handshakeAck;
+    std::cout << "joining the game step 1.01\n";
 
     handshakeAck << username;
+    std::cout << "joining the game step 1.1\n";
 
     if (!network.send(network.getSocket(), MessageType::Join, handshakeAck)) {
         std::cerr << "Failed to send handshake acknowledgment\n";
         return;
     }
+    std::cout << "joining the game step 1 complete\n";
 
-    window.setFramerateLimit(60);
-    Game game;
-    sf::Clock clock;
+
     // IMPORTANT GAME LOOP
+    std::cout << "joining the game step 1.5 (starting the game loop)\n";
     while (window.isOpen()) {
 
         // V V V handle window events V V V
+        std::cout << "window stuff\n";
+
         while (auto event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
         }
 
-        // V V V INPUT V V V
+        // V V V INPUT V V V (to be implemented in the future)
+        std::cout << "getting input\n";
 
 
 
 
         // V V V PACKETS! V V V
+        std::cout << "getting packets\n";
         auto packets = network.poll();
         while(!packets.empty()) {
             auto [type, packet] = packets.front();
@@ -73,14 +80,19 @@ void Client::run() {
 
 
         // V V V game update V V V
+        std::cout << "updating game objects\n";
         float dt = clock.restart().asSeconds();
         game.update(dt);
-
+        std::cout << "setting camera pos\n";
+        if (auto* player = game.getObject(1)) {
+            game.cameraPos = player->position - screensize;
+        }
 
         // V V V RENDER! V V V
-
+        std::cout << "rendering\n";
         window.clear();
-        std::cout << game.getObject(1)->toString() << "\n";
+        //std::cout << game.getObject(1)->toString() << "\n";
+        window.clear();
         game.render(window);
         window.display();
 
@@ -89,7 +101,7 @@ void Client::run() {
 }
 
 
-
+// V V V V V its in the name V V V V V
 std::string Client::_getUsername() {
     sf::RenderWindow window(sf::VideoMode({300, 80}), "enter username");
     window.setFramerateLimit(60);
@@ -162,7 +174,9 @@ void Client::handlePacket(MessageType type, sf::Packet& packet, Game& game) {
     switch (type) {
         case MessageType::Join: {
             std::uint32_t count;
+            std::cout << "joining the game step 2\n";
             packet >> count;
+            std::cout << "joined the game step 2.1\n";
 
             for (std::uint32_t i = 0; i < count; ++i) {
                 Object obj;
@@ -187,9 +201,27 @@ void Client::handlePacket(MessageType type, sf::Packet& packet, Game& game) {
             // TODO: handle object removal
             break;
 
-        case MessageType::UpdateObject: { // IMPORTANT
+        case MessageType::UpdateObject: { // IMPORTANT!
 
+            ObjectID id;
+            packet >> id;
+            if (auto obj = game.getObject(id)) {
+
+                uint8_t fieldCount;
+                packet >> fieldCount;
+
+                for (uint8_t i = 0; i < fieldCount; ++i) {
+                    uint8_t raw;
+                    packet >> raw;
+
+                    ObjectField field = static_cast<ObjectField>(raw);
+                    Object::deserializeField(packet, *obj, field);
+                }
+            }
+
+            break;
         }
+
         default: ;
     }
 }
