@@ -5,6 +5,7 @@
 // -------------------- Constructor --------------------
 Object::Object(ObjectID id)
     : id(id) {}
+// -------------------- Stuff -----------------------
 
 
 // -------------------- Field Serialization --------------------
@@ -40,6 +41,13 @@ sf::Packet& Object::serializeField(sf::Packet& packet, const Object& obj, Object
             break;
         case ObjectField::Radius:
             packet << obj.radius;
+            break;
+        case ObjectField::SendUpdates:
+            packet << obj.sendUpdates;
+            break;
+        case ObjectField::DrawOrder:
+            packet << obj.drawOrder;
+            break;
     }
     return packet;
 }
@@ -55,10 +63,6 @@ void Object::deserializeField(sf::Packet& packet, Object& obj, ObjectField field
         }
         case ObjectField::Velocity: {
             packet >> obj.velocity.x >> obj.velocity.y;
-            break;
-        }
-        case ObjectField::Owner: {
-            packet >> obj.owner;
             break;
         }
         case ObjectField::Authority: {
@@ -89,6 +93,12 @@ void Object::deserializeField(sf::Packet& packet, Object& obj, ObjectField field
         case ObjectField::Radius: {
             packet >> obj.radius;
         }
+        case ObjectField::SendUpdates: {
+            packet >> obj.sendUpdates;
+        }
+        case ObjectField::DrawOrder: {
+            packet >> obj.drawOrder;
+        }
     }
 }
 
@@ -104,7 +114,9 @@ sf::Packet& operator<<(sf::Packet& packet, const Object& obj) { // puts the enti
     << obj.rotation
     << obj.radius
     << obj.size.x << obj.size.y
-    << obj.color.a << obj.color.r << obj.color.g << obj.color.b;
+    << obj.color.a << obj.color.r << obj.color.g << obj.color.b
+    << obj.sendUpdates
+    << obj.drawOrder;
     return packet;
 }
 
@@ -120,7 +132,9 @@ sf::Packet& operator>>(sf::Packet& packet, Object& obj) { // takes the object ou
     >> obj.rotation
     >> obj.radius
     >> obj.size.x >> obj.size.y
-    >> obj.color.a >> obj.color.r >> obj.color.g >> obj.color.b;
+    >> obj.color.a >> obj.color.r >> obj.color.g >> obj.color.b
+    >> obj.sendUpdates
+    >> obj.drawOrder;
 
     obj.authority = static_cast<Authority>(a);
     obj.t = static_cast<Type>(t);
@@ -158,7 +172,7 @@ std::string Object::toString() const {
 void Object::rebuildRenderer() {
     switch (t) {
         case Type::GenericCircle: {
-            auto c = std::make_unique<sf::CircleShape>(radius);
+            auto c = std::make_unique<sf::CircleShape>(radius * 2);
             c->setOrigin(sf::Vector2f(radius, radius));
             renderer = std::move(c);
             break;
@@ -187,6 +201,80 @@ void Object::rebuildRenderer() {
             renderer = std::move(r);
             break;
         }
+        case Type::Bullet: {
+            auto c = std::make_unique<sf::CircleShape>(radius * 2);
+            c->setOrigin(sf::Vector2f(radius, radius));
+            c->setFillColor(sf::Color::Red);
+            renderer = std::move(c);
+            break;
+        }
+        case Type::PlayerTurret1: {
+            auto r = std::make_unique<sf::VertexArray>(sf::PrimitiveType::TriangleFan);
+            r->append(sf::Vertex{{0.f, 0.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+
+            r->append(sf::Vertex{{0.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-2.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-2.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-3.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-3.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-4.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-5.f, 0.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-3.f, -5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+
+            r->append(sf::Vertex{{3.f, -5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{5.f, 0.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{4.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{3.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{3.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{2.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{2.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+
+
+
+            renderer = std::move(r);
+            break;
+        }
+        case Type::PlayerTurret2: {
+            auto r = std::make_unique<sf::VertexArray>(sf::PrimitiveType::TriangleFan);
+            r->append(sf::Vertex{{0.f, 0.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+
+            r->append(sf::Vertex{{0.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-2.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-2.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-3.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-3.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-4.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-5.f, 0.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{-3.f, -5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+
+            r->append(sf::Vertex{{3.f, -5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{5.f, 0.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{4.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{3.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{3.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{2.f, 12.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{2.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, 5.f}, sf::Color(200, 200, 200), {100.f, 100.f}});
+
+
+
+            renderer = std::move(r);
+            break;
+        }
+        case Type::Enemy1: {
+            auto r = std::make_unique<sf::VertexArray>(sf::PrimitiveType::TriangleFan);
+            r->append(sf::Vertex{{0.f, 0.f}, sf::Color(200, 0, 0), {100.f, 100.f}});
+
+            r->append(sf::Vertex{{0.f, 10.f}, sf::Color(200, 0, 0), {100.f, 100.f}});
+            r->append(sf::Vertex{{-7.f, -10.f}, sf::Color(200, 0, 0), {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, -7.f}, sf::Color(200, 0, 0), {100.f, 100.f}});
+            r->append(sf::Vertex{{7.f, -10.f}, sf::Color(200, 0, 0), {100.f, 100.f}});
+            r->append(sf::Vertex{{0.f, 10.f}, sf::Color(200, 0, 0), {100.f, 100.f}});
+
+            renderer = std::move(r);
+            break;
+        }
         default:
             renderer.reset();
             break;
@@ -204,3 +292,4 @@ void Object::applyColor() {
 
     }
 }
+

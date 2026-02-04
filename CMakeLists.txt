@@ -20,6 +20,8 @@ add_executable(main
         src/Network.cpp
         src/Game.cpp
         src/Object.cpp
+        src/Trail.cpp
+        src/Trail.h
 )
 
 target_link_libraries(main PRIVATE

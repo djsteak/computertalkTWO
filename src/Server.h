@@ -20,7 +20,7 @@ private:
     std::list<sf::TcpSocket> clients;
     bool running = true;
     void broadcastGameState();
-    static void handlePacket(MessageType type, sf::Packet& packet, sf::TcpSocket& client);
+    void handlePacket(MessageType type, sf::Packet& packet, sf::TcpSocket& client);
 };
 
 #endif

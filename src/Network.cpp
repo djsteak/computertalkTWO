@@ -1,6 +1,6 @@
 #include <SFML/Network.hpp>
 #include "Network.h"
-#include <iostream>
+//#include <iostream>
 
 Network::~Network() {
     disconnect();
@@ -12,7 +12,7 @@ bool Network::connect(const sf::IpAddress& address, unsigned short port) {
     sf::Time time = sf::milliseconds(1000);
 
     if (socket.connect(address, port, time) != sf::Socket::Status::Done) {
-        std::cerr << "Failed to connect to server\n";
+        //std::cerr << "Failed to connect to server\n";
         return false;
     }
     socket.setBlocking(false);
@@ -29,7 +29,7 @@ sf::TcpSocket& Network::getSocket() {
 
 bool Network::listen(unsigned short port) {
     if (listener.listen(port) != sf::Socket::Status::Done) {
-        std::cerr << "Failed to listen on port " << port << "\n";
+        //std::cerr << "Failed to listen on port " << port << "\n";
         return false;
     }
     return true;
@@ -90,7 +90,7 @@ bool Network::receive(sf::TcpSocket& socket, MessageType& type, sf::Packet& pack
         return true; // no data yet, keep socket
     }
     else {
-        std::cerr << "Network error on receive: " << static_cast<int>(status) << "\n";
+        //std::cerr << "Network error on receive: " << static_cast<int>(status) << "\n";
         return false;
     }
 }

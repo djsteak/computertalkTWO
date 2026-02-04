@@ -11,10 +11,10 @@ public:
     sf::Vector2f screensize = sf::Vector2f(500, 400);
     Client();
     void run();
-
+    ControlType control = ControlType::Pilot;
 private:
     static std::string _getUsername();
-    static void handlePacket(MessageType type, sf::Packet& packet, Game& game);
+    void handlePacket(MessageType type, sf::Packet& packet, Game& game);
     Network network;
 };
 
